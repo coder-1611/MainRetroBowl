@@ -101,68 +101,30 @@
             top: 38px;
             right: 10px;
         }
-        #settings-btn {
-            top: 6px;
-            right: 10px;
-            font-size: 18px;
-            padding: 4px 10px;
-            background: #0f0f1a;
-            border-color: #555;
-            color: #aaa;
-        }
-        #settings-dropdown {
+        #cheats-toggle {
             display: none;
-            position: fixed;
-            top: 34px;
-            right: 10px;
-            z-index: 10000;
-            background: #1a1a2e;
-            border: 2px solid #e94560;
-            border-radius: 8px;
-            padding: 10px 14px;
-            font-family: monospace;
-            color: #ccc;
-        }
-        .setting-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 16px;
-            margin-bottom: 6px;
-        }
-        .setting-row:last-child {
-            margin-bottom: 0;
-        }
-        .setting-row label {
-            font-size: 12px;
-            white-space: nowrap;
-        }
-        .toggle {
-            position: relative;
-            width: 34px;
-            height: 18px;
-            background: #333;
-            border-radius: 9px;
-            cursor: pointer;
-            transition: background 0.2s;
-            flex-shrink: 0;
-        }
-        .toggle.on {
-            background: #e94560;
-        }
-        .toggle::after {
-            content: '';
             position: absolute;
-            top: 2px;
-            left: 2px;
-            width: 14px;
-            height: 14px;
-            background: #fff;
-            border-radius: 50%;
-            transition: left 0.2s;
+            z-index: 9999;
+            background: #4466cc;
+            color: #fff;
+            border: 4px solid #fff;
+            border-radius: 0;
+            padding: 8px 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            cursor: pointer;
+            box-shadow: 4px 4px 0px #222;
+            image-rendering: pixelated;
         }
-        .toggle.on::after {
-            left: 18px;
+        #cheats-toggle:hover {
+            background: #5577dd;
+        }
+        #cheats-toggle:active {
+            box-shadow: 2px 2px 0px #222;
+            transform: translate(2px, 2px);
         }
     </style>
 </head>
@@ -176,20 +138,9 @@
         </canvas>
     </div>
 
-    <button id="settings-btn" class="cheat-btn" title="Cheat Settings">&#9881;</button>
     <button id="credits-btn" class="cheat-btn" title="Set Coaching Credits">CC: ---</button>
     <button id="max-btn" class="cheat-btn" title="Max All Players">MAX</button>
-
-    <div id="settings-dropdown">
-        <div class="setting-row">
-            <label>Credits</label>
-            <div id="toggle-cc" class="toggle on"></div>
-        </div>
-        <div class="setting-row">
-            <label>Max</label>
-            <div id="toggle-max" class="toggle on"></div>
-        </div>
-    </div>
+    <button id="cheats-toggle">CHEATS ON</button>
 
     <script type="text/javascript" src="retrobowl.js"></script>
 
@@ -197,42 +148,49 @@
         (function () {
             var creditsBtn = document.getElementById('credits-btn');
             var maxBtn = document.getElementById('max-btn');
-            var settingsBtn = document.getElementById('settings-btn');
-            var settingsDropdown = document.getElementById('settings-dropdown');
-            var toggleCC = document.getElementById('toggle-cc');
-            var toggleMax = document.getElementById('toggle-max');
+            var cheatsToggle = document.getElementById('cheats-toggle');
+            var canvas = document.getElementById('canvas');
 
             // Load saved preferences
-            var prefs = JSON.parse(localStorage.getItem('rb_cheat_prefs') || '{"cc":true,"max":true}');
+            var cheatsOn = localStorage.getItem('rb_cheats_on') !== 'false';
 
             function applyPrefs() {
-                creditsBtn.style.display = prefs.cc ? '' : 'none';
-                maxBtn.style.display = prefs.max ? '' : 'none';
-                toggleCC.className = 'toggle' + (prefs.cc ? ' on' : '');
-                toggleMax.className = 'toggle' + (prefs.max ? ' on' : '');
-                localStorage.setItem('rb_cheat_prefs', JSON.stringify(prefs));
+                creditsBtn.style.display = cheatsOn ? '' : 'none';
+                maxBtn.style.display = cheatsOn ? '' : 'none';
+                cheatsToggle.textContent = cheatsOn ? 'CHEATS ON' : 'CHEATS OFF';
+                localStorage.setItem('rb_cheats_on', cheatsOn);
             }
             applyPrefs();
 
-            // Settings dropdown toggle
-            settingsBtn.addEventListener('click', function (e) {
+            // Position the cheats button relative to the canvas, matching game button style
+            function positionCheatsBtn() {
+                try {
+                    // Only show on options screen (room 18)
+                    if (_ft._gt() === 18) {
+                        cheatsToggle.style.display = 'block';
+                        var rect = canvas.getBoundingClientRect();
+                        // Position bottom-right area of options screen, next to difficulty row
+                        cheatsToggle.style.left = (rect.left + rect.width * 0.75) + 'px';
+                        cheatsToggle.style.top = (rect.top + rect.height * 0.78) + 'px';
+                        // Scale button to match canvas size
+                        var scale = rect.width / 853;
+                        cheatsToggle.style.fontSize = Math.max(10, Math.floor(16 * scale)) + 'px';
+                        cheatsToggle.style.padding = Math.floor(8 * scale) + 'px ' + Math.floor(20 * scale) + 'px';
+                        cheatsToggle.style.borderWidth = Math.max(2, Math.floor(4 * scale)) + 'px';
+                    } else {
+                        cheatsToggle.style.display = 'none';
+                    }
+                } catch (e) {
+                    cheatsToggle.style.display = 'none';
+                }
+            }
+            setInterval(positionCheatsBtn, 500);
+
+            // Toggle cheats on/off
+            cheatsToggle.addEventListener('click', function (e) {
                 e.preventDefault();
                 e.stopPropagation();
-                var open = settingsDropdown.style.display === 'block';
-                settingsDropdown.style.display = open ? 'none' : 'block';
-            });
-            document.addEventListener('click', function (e) {
-                if (!settingsDropdown.contains(e.target) && e.target !== settingsBtn) {
-                    settingsDropdown.style.display = 'none';
-                }
-            });
-
-            toggleCC.addEventListener('click', function () {
-                prefs.cc = !prefs.cc;
-                applyPrefs();
-            });
-            toggleMax.addEventListener('click', function () {
-                prefs.max = !prefs.max;
+                cheatsOn = !cheatsOn;
                 applyPrefs();
             });
 
