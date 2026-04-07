@@ -101,31 +101,6 @@
             top: 38px;
             right: 10px;
         }
-        #cheats-toggle {
-            display: none;
-            position: absolute;
-            z-index: 9999;
-            background: #4466cc;
-            color: #fff;
-            border: 4px solid #fff;
-            border-radius: 0;
-            padding: 8px 20px;
-            font-family: 'Courier New', monospace;
-            font-size: 16px;
-            font-weight: bold;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            cursor: pointer;
-            box-shadow: 4px 4px 0px #222;
-            image-rendering: pixelated;
-        }
-        #cheats-toggle:hover {
-            background: #5577dd;
-        }
-        #cheats-toggle:active {
-            box-shadow: 2px 2px 0px #222;
-            transform: translate(2px, 2px);
-        }
     </style>
 </head>
 
@@ -140,7 +115,6 @@
 
     <button id="credits-btn" class="cheat-btn" title="Set Coaching Credits">CC: ---</button>
     <button id="max-btn" class="cheat-btn" title="Max All Players">MAX</button>
-    <button id="cheats-toggle">CHEATS ON</button>
 
     <script type="text/javascript" src="retrobowl.js"></script>
 
@@ -148,8 +122,6 @@
         (function () {
             var creditsBtn = document.getElementById('credits-btn');
             var maxBtn = document.getElementById('max-btn');
-            var cheatsToggle = document.getElementById('cheats-toggle');
-            var canvas = document.getElementById('canvas');
 
             // Load saved preferences
             var cheatsOn = localStorage.getItem('rb_cheats_on') !== 'false';
@@ -157,42 +129,89 @@
             function applyPrefs() {
                 creditsBtn.style.display = cheatsOn ? '' : 'none';
                 maxBtn.style.display = cheatsOn ? '' : 'none';
-                cheatsToggle.textContent = cheatsOn ? 'CHEATS ON' : 'CHEATS OFF';
                 localStorage.setItem('rb_cheats_on', cheatsOn);
             }
             applyPrefs();
 
-            // Position the cheats button relative to the canvas, matching game button style
-            function positionCheatsBtn() {
-                try {
-                    // Only show on options screen (room 18)
-                    if (_ft._gt() === 18) {
-                        cheatsToggle.style.display = 'block';
-                        var rect = canvas.getBoundingClientRect();
-                        // Position bottom-right area of options screen, next to difficulty row
-                        cheatsToggle.style.left = (rect.left + rect.width * 0.75) + 'px';
-                        cheatsToggle.style.top = (rect.top + rect.height * 0.78) + 'px';
-                        // Scale button to match canvas size
-                        var scale = rect.width / 853;
-                        cheatsToggle.style.fontSize = Math.max(10, Math.floor(16 * scale)) + 'px';
-                        cheatsToggle.style.padding = Math.floor(8 * scale) + 'px ' + Math.floor(20 * scale) + 'px';
-                        cheatsToggle.style.borderWidth = Math.max(2, Math.floor(4 * scale)) + 'px';
-                    } else {
-                        cheatsToggle.style.display = 'none';
-                    }
-                } catch (e) {
-                    cheatsToggle.style.display = 'none';
-                }
-            }
-            setInterval(positionCheatsBtn, 500);
+            // Hook into the options screen draw to render our button on the canvas
+            var hooked = false;
+            var CHEATS_BTN = { x: 392, y: 168, sprite: 166 };
+            var cheatBtnPressed = false;
 
-            // Toggle cheats on/off
-            cheatsToggle.addEventListener('click', function (e) {
-                e.preventDefault();
-                e.stopPropagation();
-                cheatsOn = !cheatsOn;
-                applyPrefs();
+            function hookOptionsDraw() {
+                if (hooked) return;
+                hooked = true;
+
+                // Save original draw function for obj_options
+                var orig_g9 = _g9;
+                _g9 = function (_, t) {
+                    orig_g9(_, t);
+
+                    // Draw our CHEATS button using the same sprite as other buttons (166 = button_med_slim)
+                    var spr = CHEATS_BTN.sprite;
+                    var bx = CHEATS_BTN.x;
+                    var by = CHEATS_BTN.y;
+
+                    // Draw shadow layer (same as game: sprite sub-image 2 offset by +2,+2 in dark)
+                    _mh1(_, spr, 2, bx + 2, by + 2, 1, 1, 0, 4210752, 0.4);
+
+                    // Draw button background (sub-image 0 = normal)
+                    var sprObj = _Te2._Ue2(spr);
+                    if (sprObj) sprObj._953(0, bx, by, _ol2);
+
+                    // Draw color overlay (sub-image 2) with the game's button tint color
+                    var tint = cheatsOn ? 4294967295 : 4289901234;
+                    _mh1(_, spr, 2, bx, by, 1, 1, 0, tint, 1);
+
+                    // Draw text centered on button
+                    // Get sprite dimensions to center text
+                    var sw = sprObj ? sprObj._53[0]._J52 : 80;
+                    var sh = sprObj ? sprObj._53[0]._K52 : 28;
+                    var cx = bx + sw / 2 + 1;
+                    var cy = by + sh / 2 - 1;
+
+                    _gh1(1);  // font
+                    _hh1(1);  // halign center
+                    _nh1(cx, cy, cheatsOn ? 'CHEATS ON' : 'CHEATS OFF');
+                };
+            }
+
+            // Intercept canvas clicks to detect our button
+            var canvas = document.getElementById('canvas');
+            canvas.addEventListener('click', function (e) {
+                try {
+                    if (_ft._gt() !== 18) return; // Only on options screen
+
+                    // Convert screen coords to game coords (game room is 480x270)
+                    var rect = canvas.getBoundingClientRect();
+                    var gameX = ((e.clientX - rect.left) / rect.width) * 480;
+                    var gameY = ((e.clientY - rect.top) / rect.height) * 270;
+
+                    // Get button sprite dimensions
+                    var sprObj = _Te2._Ue2(CHEATS_BTN.sprite);
+                    var sw = sprObj ? sprObj._53[0]._J52 : 80;
+                    var sh = sprObj ? sprObj._53[0]._K52 : 28;
+
+                    // Check if click is within our button bounds
+                    if (gameX >= CHEATS_BTN.x && gameX <= CHEATS_BTN.x + sw &&
+                        gameY >= CHEATS_BTN.y && gameY <= CHEATS_BTN.y + sh) {
+                        cheatsOn = !cheatsOn;
+                        applyPrefs();
+                        // Play click sound if sound is on
+                        try {
+                            var state = _6E2._Ue2(64);
+                            if (state && _Ai(state._Gn, 'op_soundfx')) _8z(5, 1, 0);
+                        } catch (ex) {}
+                    }
+                } catch (ex) {}
             });
+
+            // Try to hook once the game is loaded
+            setInterval(function () {
+                try {
+                    if (typeof _g9 === 'function' && typeof _Te2 !== 'undefined') hookOptionsDraw();
+                } catch (e) {}
+            }, 1000);
 
             // Game state helper
             function getState() {
