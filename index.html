@@ -70,11 +70,8 @@
             height: 100%;
         }
 
-        #credits-btn {
+        .cheat-btn {
             position: fixed;
-            top: 38px;
-            left: 50%;
-            transform: translateX(-50%);
             z-index: 9999;
             background: #1a1a2e;
             color: #e94560;
@@ -88,9 +85,106 @@
             opacity: 0.85;
             transition: opacity 0.2s, transform 0.1s;
         }
-        #credits-btn:hover {
+        .cheat-btn:hover {
             opacity: 1;
+            transform: scale(1.05);
+        }
+        #credits-btn {
+            top: 38px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        #credits-btn:hover {
             transform: translateX(-50%) scale(1.05);
+        }
+        #max-btn {
+            top: 38px;
+            right: 10px;
+        }
+        #settings-btn {
+            top: 6px;
+            right: 10px;
+            font-size: 18px;
+            padding: 4px 10px;
+            background: #0f0f1a;
+            border-color: #555;
+            color: #aaa;
+        }
+        #settings-panel {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10000;
+            background: #1a1a2e;
+            border: 2px solid #e94560;
+            border-radius: 12px;
+            padding: 24px 32px;
+            font-family: monospace;
+            color: #ccc;
+            min-width: 240px;
+        }
+        #settings-panel h3 {
+            margin: 0 0 16px 0;
+            color: #e94560;
+            font-size: 16px;
+            text-align: center;
+        }
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .setting-row label {
+            font-size: 14px;
+        }
+        .toggle {
+            position: relative;
+            width: 40px;
+            height: 22px;
+            background: #333;
+            border-radius: 11px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .toggle.on {
+            background: #e94560;
+        }
+        .toggle::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 16px;
+            height: 16px;
+            background: #fff;
+            border-radius: 50%;
+            transition: left 0.2s;
+        }
+        .toggle.on::after {
+            left: 21px;
+        }
+        #settings-close {
+            display: block;
+            margin: 16px auto 0;
+            background: #e94560;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 24px;
+            font-family: monospace;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        #settings-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 9999;
         }
     </style>
 </head>
@@ -104,38 +198,89 @@
         </canvas>
     </div>
 
-    <button id="credits-btn" title="Set Coaching Credits">CC: ---</button>
+    <button id="settings-btn" class="cheat-btn" title="Cheat Settings">&#9881;</button>
+    <button id="credits-btn" class="cheat-btn" title="Set Coaching Credits">CC: ---</button>
+    <button id="max-btn" class="cheat-btn" title="Max All Players">MAX</button>
+
+    <div id="settings-overlay"></div>
+    <div id="settings-panel">
+        <h3>Cheat Settings</h3>
+        <div class="setting-row">
+            <label>Coaching Credits</label>
+            <div id="toggle-cc" class="toggle on"></div>
+        </div>
+        <div class="setting-row">
+            <label>Max Players</label>
+            <div id="toggle-max" class="toggle on"></div>
+        </div>
+        <button id="settings-close">Close</button>
+    </div>
 
     <script type="text/javascript" src="retrobowl.js"></script>
 
     <script>
         (function () {
-            var btn = document.getElementById('credits-btn');
-            var refreshInterval;
+            var creditsBtn = document.getElementById('credits-btn');
+            var maxBtn = document.getElementById('max-btn');
+            var settingsBtn = document.getElementById('settings-btn');
+            var settingsPanel = document.getElementById('settings-panel');
+            var settingsOverlay = document.getElementById('settings-overlay');
+            var settingsClose = document.getElementById('settings-close');
+            var toggleCC = document.getElementById('toggle-cc');
+            var toggleMax = document.getElementById('toggle-max');
 
+            // Load saved preferences
+            var prefs = JSON.parse(localStorage.getItem('rb_cheat_prefs') || '{"cc":true,"max":true}');
+
+            function applyPrefs() {
+                creditsBtn.style.display = prefs.cc ? '' : 'none';
+                maxBtn.style.display = prefs.max ? '' : 'none';
+                toggleCC.className = 'toggle' + (prefs.cc ? ' on' : '');
+                toggleMax.className = 'toggle' + (prefs.max ? ' on' : '');
+                localStorage.setItem('rb_cheat_prefs', JSON.stringify(prefs));
+            }
+            applyPrefs();
+
+            // Settings panel
+            settingsBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                settingsPanel.style.display = 'block';
+                settingsOverlay.style.display = 'block';
+            });
+            function closeSettings() {
+                settingsPanel.style.display = 'none';
+                settingsOverlay.style.display = 'none';
+            }
+            settingsClose.addEventListener('click', closeSettings);
+            settingsOverlay.addEventListener('click', closeSettings);
+
+            toggleCC.addEventListener('click', function () {
+                prefs.cc = !prefs.cc;
+                applyPrefs();
+            });
+            toggleMax.addEventListener('click', function () {
+                prefs.max = !prefs.max;
+                applyPrefs();
+            });
+
+            // Game state helper
             function getState() {
-                try {
-                    return _6E2._Ue2(64);
-                } catch (e) {
-                    return null;
-                }
+                try { return _6E2._Ue2(64); } catch (e) { return null; }
             }
 
+            // Credits button
             function updateLabel() {
                 var s = getState();
                 if (s && s._9n !== undefined) {
-                    btn.textContent = 'CC: ' + Math.floor(s._9n);
+                    creditsBtn.textContent = 'CC: ' + Math.floor(s._9n);
                 }
             }
-
-            btn.addEventListener('click', function (e) {
+            creditsBtn.addEventListener('click', function (e) {
                 e.preventDefault();
                 e.stopPropagation();
                 var s = getState();
-                if (!s) {
-                    alert('Game not loaded yet. Start a game first!');
-                    return;
-                }
+                if (!s) { alert('Game not loaded yet. Start a game first!'); return; }
                 var current = Math.floor(s._9n || 0);
                 var input = prompt('Enter coaching credits amount:', current);
                 if (input !== null && input !== '') {
@@ -148,9 +293,41 @@
                     }
                 }
             });
+            setInterval(updateLabel, 2000);
 
-            // Update the button label periodically
-            refreshInterval = setInterval(updateLabel, 2000);
+            // Max button
+            maxBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                var s = getState();
+                if (!s) { alert('Game not loaded yet. Start a game first!'); return; }
+                try {
+                    var rosterList = _dq2._Ue2(s._Ln);
+                    if (!rosterList || !rosterList._oq2) {
+                        alert('No roster found. Make sure you have a team!');
+                        return;
+                    }
+                    var count = 0;
+                    for (var i = 0; i < rosterList._oq2.length; i++) {
+                        var pid = rosterList._oq2[i];
+                        if (typeof pid === 'object' && pid.Object !== undefined) pid = pid.Object;
+                        var p = _fg2._Ue2(pid);
+                        if (p) {
+                            p['speed'] = 10;
+                            p['strength'] = 10;
+                            p['stamina'] = 10;
+                            p['skill'] = 10;
+                            p['condition'] = 100;
+                            p['attitude'] = 100;
+                            count++;
+                        }
+                    }
+                    maxBtn.textContent = 'MAXED!';
+                    setTimeout(function () { maxBtn.textContent = 'MAX'; }, 1500);
+                } catch (err) {
+                    alert('Error: ' + err.message);
+                }
+            });
         })();
     </script>
 
