@@ -133,46 +133,61 @@
             }
             applyPrefs();
 
-            // Hook into the options screen draw to render our button on the canvas
+            // Hook into button_med_slim draw (_23) to draw our cheats button on options screen
             var hooked = false;
-            var CHEATS_BTN = { x: 392, y: 168, sprite: 166 };
-            var cheatBtnPressed = false;
+            // Button position in game coords (third column, below ROSTER row)
+            var CHEATS_BTN = { x: 392, y: 168, w: 80, h: 28, sprite: 166 };
 
-            function hookOptionsDraw() {
+            function hookButtonDraw() {
                 if (hooked) return;
                 hooked = true;
 
-                // Save original draw function for obj_options
-                var orig_g9 = _g9;
-                _g9 = function (_, t) {
-                    orig_g9(_, t);
+                // Hook the draw function of obj_button_med_slim
+                var orig_23 = _23;
+                var lastDrawFrame = -1;
+                _23 = function (inst, t) {
+                    orig_23(inst, t);
 
-                    // Draw our CHEATS button using the same sprite as other buttons (166 = button_med_slim)
-                    var spr = CHEATS_BTN.sprite;
-                    var bx = CHEATS_BTN.x;
-                    var by = CHEATS_BTN.y;
+                    // Only draw once per frame, and only on options screen (room 18)
+                    try {
+                        var frame = _ft._ZB();
+                        if (frame === lastDrawFrame) return;
+                        if (_ft._gt() !== 18) return;
+                        lastDrawFrame = frame;
 
-                    // Draw shadow layer (same as game: sprite sub-image 2 offset by +2,+2 in dark)
-                    _mh1(_, spr, 2, bx + 2, by + 2, 1, 1, 0, 4210752, 0.4);
+                        var spr = CHEATS_BTN.sprite;
+                        var bx = CHEATS_BTN.x;
+                        var by = CHEATS_BTN.y;
 
-                    // Draw button background (sub-image 0 = normal)
-                    var sprObj = _Te2._Ue2(spr);
-                    if (sprObj) sprObj._953(0, bx, by, _ol2);
+                        // Get sprite size for hit detection
+                        var sprObj = _Te2._Ue2(spr);
+                        if (sprObj && sprObj._53 && sprObj._53[0]) {
+                            CHEATS_BTN.w = sprObj._53[0]._J52;
+                            CHEATS_BTN.h = sprObj._53[0]._K52;
+                        }
 
-                    // Draw color overlay (sub-image 2) with the game's button tint color
-                    var tint = cheatsOn ? 4294967295 : 4289901234;
-                    _mh1(_, spr, 2, bx, by, 1, 1, 0, tint, 1);
+                        // Use the same draw calls as the game buttons:
+                        // 1. Shadow (sub-image 2, offset, dark color)
+                        _mh1(inst, spr, 2, bx, by, 1, 1, 0, inst._po || 4294967295, 1);
 
-                    // Draw text centered on button
-                    // Get sprite dimensions to center text
-                    var sw = sprObj ? sprObj._53[0]._J52 : 80;
-                    var sh = sprObj ? sprObj._53[0]._K52 : 28;
-                    var cx = bx + sw / 2 + 1;
-                    var cy = by + sh / 2 - 1;
+                        // 2. Button base (sub-image 0)
+                        _Kh1(inst, spr, 0, bx, by);
 
-                    _gh1(1);  // font
-                    _hh1(1);  // halign center
-                    _nh1(cx, cy, cheatsOn ? 'CHEATS ON' : 'CHEATS OFF');
+                        // 3. Color tint overlay (sub-image 2 with team color)
+                        _mh1(inst, spr, 2, bx, by, 1, 1, 0, inst._po || 4294967295, 1);
+
+                        // 4. Text centered
+                        _gh1(1);
+                        _hh1(1);
+                        var cx = bx + CHEATS_BTN.w / 2 + 1;
+                        var cy = by + CHEATS_BTN.h / 2 - 1;
+                        _nh1(cx, cy, cheatsOn ? 'ON' : 'OFF');
+
+                        // Draw label text to the left of the button (like WEATHER, ROSTER, etc.)
+                        _hh1(2); // right align
+                        _nh1(bx - 4, cy, 'CHEATS');
+                        _hh1(0); // reset to left align
+                    } catch (ex) {}
                 };
             }
 
@@ -180,24 +195,16 @@
             var canvas = document.getElementById('canvas');
             canvas.addEventListener('click', function (e) {
                 try {
-                    if (_ft._gt() !== 18) return; // Only on options screen
+                    if (_ft._gt() !== 18) return;
 
-                    // Convert screen coords to game coords (game room is 480x270)
                     var rect = canvas.getBoundingClientRect();
                     var gameX = ((e.clientX - rect.left) / rect.width) * 480;
                     var gameY = ((e.clientY - rect.top) / rect.height) * 270;
 
-                    // Get button sprite dimensions
-                    var sprObj = _Te2._Ue2(CHEATS_BTN.sprite);
-                    var sw = sprObj ? sprObj._53[0]._J52 : 80;
-                    var sh = sprObj ? sprObj._53[0]._K52 : 28;
-
-                    // Check if click is within our button bounds
-                    if (gameX >= CHEATS_BTN.x && gameX <= CHEATS_BTN.x + sw &&
-                        gameY >= CHEATS_BTN.y && gameY <= CHEATS_BTN.y + sh) {
+                    if (gameX >= CHEATS_BTN.x && gameX <= CHEATS_BTN.x + CHEATS_BTN.w &&
+                        gameY >= CHEATS_BTN.y && gameY <= CHEATS_BTN.y + CHEATS_BTN.h) {
                         cheatsOn = !cheatsOn;
                         applyPrefs();
-                        // Play click sound if sound is on
                         try {
                             var state = _6E2._Ue2(64);
                             if (state && _Ai(state._Gn, 'op_soundfx')) _8z(5, 1, 0);
@@ -206,10 +213,10 @@
                 } catch (ex) {}
             });
 
-            // Try to hook once the game is loaded
+            // Hook once game is loaded
             setInterval(function () {
                 try {
-                    if (typeof _g9 === 'function' && typeof _Te2 !== 'undefined') hookOptionsDraw();
+                    if (typeof _23 === 'function' && typeof _Te2 !== 'undefined') hookButtonDraw();
                 } catch (e) {}
             }, 1000);
 
