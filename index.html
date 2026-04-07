@@ -133,74 +133,78 @@
             }
             applyPrefs();
 
-            // Hook into button_med_slim draw (_23) to draw our cheats button on options screen
+            // Hook into button_med_slim draw to draw our cheats button on options screen
             var hooked = false;
-            // Button position in game coords (third column, below ROSTER row)
             var CHEATS_BTN = { x: 392, y: 168, w: 80, h: 28, sprite: 166 };
 
             function hookButtonDraw() {
                 if (hooked) return;
-                hooked = true;
+                try {
+                    // Find obj_button_med_slim in the object type registry and patch its draw function
+                    var objDefs = _Ec2._UX3;
+                    for (var i = 0; i < objDefs.length; i++) {
+                        var def = objDefs[i];
+                        if (def && def._51 === 'obj_button_med_slim') {
+                            hooked = true;
+                            var origDraw = def._j2;
+                            var lastDrawFrame = -1;
 
-                // Hook the draw function of obj_button_med_slim
-                var orig_23 = _23;
-                var lastDrawFrame = -1;
-                _23 = function (inst, t) {
-                    orig_23(inst, t);
+                            def._j2 = function (inst, t) {
+                                origDraw(inst, t);
 
-                    // Only draw once per frame, and only on options screen (room 18)
-                    try {
-                        var frame = _ft._ZB();
-                        if (frame === lastDrawFrame) return;
-                        if (_ft._gt() !== 18) return;
-                        lastDrawFrame = frame;
+                                try {
+                                    var frame = _ft._ZB();
+                                    if (frame === lastDrawFrame) return;
+                                    if (_ft._gt() !== 18) return;
+                                    lastDrawFrame = frame;
 
-                        var spr = CHEATS_BTN.sprite;
-                        var bx = CHEATS_BTN.x;
-                        var by = CHEATS_BTN.y;
+                                    var spr = CHEATS_BTN.sprite;
+                                    var bx = CHEATS_BTN.x;
+                                    var by = CHEATS_BTN.y;
 
-                        // Get sprite size for hit detection
-                        var sprObj = _Te2._Ue2(spr);
-                        if (sprObj && sprObj._53 && sprObj._53[0]) {
-                            CHEATS_BTN.w = sprObj._53[0]._J52;
-                            CHEATS_BTN.h = sprObj._53[0]._K52;
+                                    // Get sprite size
+                                    var sprObj = _Te2._Ue2(spr);
+                                    if (sprObj && sprObj._53 && sprObj._53[0]) {
+                                        CHEATS_BTN.w = sprObj._53[0]._J52;
+                                        CHEATS_BTN.h = sprObj._53[0]._K52;
+                                    }
+
+                                    // Draw exactly like game buttons do in _23/_I2:
+                                    // Shadow behind button
+                                    _mh1(inst, spr, 2, bx + 2, by + 2, 1, 1, 0, 4210752, 0.5);
+                                    // Button base sprite (sub-image 0)
+                                    _Kh1(inst, spr, 0, bx, by);
+                                    // Color overlay (sub-image 2 with button tint)
+                                    var tint = inst._po || 4294967295;
+                                    _mh1(inst, spr, 2, bx, by, 1, 1, 0, tint, 1);
+
+                                    // Text
+                                    _gh1(1);
+                                    _hh1(1);
+                                    var cx = bx + CHEATS_BTN.w / 2 + 1;
+                                    var cy = by + CHEATS_BTN.h / 2 - 1;
+                                    _nh1(cx, cy, cheatsOn ? 'ON' : 'OFF');
+
+                                    // Label to the left
+                                    _hh1(2);
+                                    _nh1(bx - 4, cy, 'CHEATS');
+                                    _hh1(0);
+                                } catch (ex) {}
+                            };
+                            break;
                         }
-
-                        // Use the same draw calls as the game buttons:
-                        // 1. Shadow (sub-image 2, offset, dark color)
-                        _mh1(inst, spr, 2, bx, by, 1, 1, 0, inst._po || 4294967295, 1);
-
-                        // 2. Button base (sub-image 0)
-                        _Kh1(inst, spr, 0, bx, by);
-
-                        // 3. Color tint overlay (sub-image 2 with team color)
-                        _mh1(inst, spr, 2, bx, by, 1, 1, 0, inst._po || 4294967295, 1);
-
-                        // 4. Text centered
-                        _gh1(1);
-                        _hh1(1);
-                        var cx = bx + CHEATS_BTN.w / 2 + 1;
-                        var cy = by + CHEATS_BTN.h / 2 - 1;
-                        _nh1(cx, cy, cheatsOn ? 'ON' : 'OFF');
-
-                        // Draw label text to the left of the button (like WEATHER, ROSTER, etc.)
-                        _hh1(2); // right align
-                        _nh1(bx - 4, cy, 'CHEATS');
-                        _hh1(0); // reset to left align
-                    } catch (ex) {}
-                };
+                    }
+                } catch (e) {}
             }
 
-            // Intercept canvas clicks to detect our button
+            // Intercept canvas clicks
             var canvas = document.getElementById('canvas');
             canvas.addEventListener('click', function (e) {
                 try {
                     if (_ft._gt() !== 18) return;
-
                     var rect = canvas.getBoundingClientRect();
                     var gameX = ((e.clientX - rect.left) / rect.width) * 480;
                     var gameY = ((e.clientY - rect.top) / rect.height) * 270;
-
                     if (gameX >= CHEATS_BTN.x && gameX <= CHEATS_BTN.x + CHEATS_BTN.w &&
                         gameY >= CHEATS_BTN.y && gameY <= CHEATS_BTN.y + CHEATS_BTN.h) {
                         cheatsOn = !cheatsOn;
@@ -216,7 +220,7 @@
             // Hook once game is loaded
             setInterval(function () {
                 try {
-                    if (typeof _23 === 'function' && typeof _Te2 !== 'undefined') hookButtonDraw();
+                    if (typeof _Ec2 !== 'undefined' && _Ec2._UX3 && _Ec2._UX3.length > 0) hookButtonDraw();
                 } catch (e) {}
             }, 1000);
 
