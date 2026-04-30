@@ -292,13 +292,15 @@
     </script>
 
     <script>
-        // Confetti button on the Options/Settings screen.
-        // Hook obj_button_med_slim's draw event, render an in-style 80x28 button
-        // at (236, 200) in game-native coords, intercept canvas clicks at that bbox,
-        // and trigger a 2-second pixel-art confetti burst on a transparent overlay canvas.
+        // Confetti option on the Options screen.
+        // Drawn into the visually-empty bottom-right grid slot at (392, 168).
+        // Renders a slim button + a right-aligned "CONFETTI" label to its left,
+        // matching obj_button_med_slim + obj_text_watermark style. Click triggers
+        // a 2-second pixel-art confetti burst on a transparent overlay canvas.
         (function () {
             var STATE_OPTIONS = 18;
-            var BTN = { x: 236, y: 200, w: 80, h: 28, sprite: 166, label: 'CONFETTI' };
+            var BTN = { x: 392, y: 168, w: 80, h: 28, sprite: 166, label: 'GO!' };
+            var LABEL = { x: 390, y: 184, text: 'CONFETTI' };
 
             // ---- Overlay canvas for the confetti effect --------------
             var fx = document.createElement('canvas');
@@ -412,13 +414,21 @@
                 var spr = BTN.sprite, x = BTN.x, y = BTN.y;
                 var s = _Te2._Ue2(spr);
                 if (s && s._53 && s._53[0]) { BTN.w = s._53[0]._J52; BTN.h = s._53[0]._K52; }
+                // Slim button: shadow -> base sprite -> tint overlay (matches obj_button_med_slim's _23 draw)
                 _mh1(inst, spr, 2, x + 2, y + 2, 1, 1, 0, 4210752, 0.5);
                 _Kh1(inst, spr, 0, x, y);
                 _mh1(inst, spr, 2, x, y, 1, 1, 0, inst._po || 4294967295, 1);
+                // Button text — font 1, centered, +1/-1 baseline tweak as in _23
                 _gh1(1);
                 _hh1(1);
+                _ih1(1);
                 _nh1(x + BTN.w / 2 + 1, y + BTN.h / 2 - 1, BTN.label);
+                // Side label — same style as obj_text_watermark labels (font 1, right-aligned, white, vmid)
+                _hh1(2);
+                _ih1(1);
+                _nh1(LABEL.x, LABEL.y, LABEL.text);
                 _hh1(0);
+                _ih1(0);
             }
 
             // ---- Click intercept -------------------------------------
