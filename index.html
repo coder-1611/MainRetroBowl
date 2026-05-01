@@ -380,7 +380,11 @@
                 if (!animId) animId = requestAnimationFrame(tick);
             }
 
-            // ---- Hook the slim-button object's draw event -------------
+            // ---- Hook the options-screen button object's draw event ----
+            // The Options room (rm_options, state 18) renders its 12 buttons as
+            // obj_button_med instances (verified at runtime). The earlier cheats
+            // hook targeted obj_button_med_slim by mistake — that type is unused
+            // on this screen, so the hook never fired.
             var hooked = false;
             function hookDraw() {
                 if (hooked) return;
@@ -388,12 +392,12 @@
                     var defs = _Ec2._UX3;
                     for (var i = 0; i < defs.length; i++) {
                         var def = defs[i];
-                        if (!def || def._fE2 !== 'obj_button_med_slim') continue;
+                        if (!def || def._fE2 !== 'obj_button_med') continue;
                         hooked = true;
                         var orig = def._j2;
                         var lastFrame = -1;
                         def._j2 = function (inst, t) {
-                            orig(inst, t);
+                            orig.call(this, inst, t);
                             try {
                                 var f = _ft._ZB();
                                 if (f === lastFrame) return;
