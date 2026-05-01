@@ -418,21 +418,23 @@
                 var spr = BTN.sprite, x = BTN.x, y = BTN.y;
                 var s = _Te2._Ue2(spr);
                 if (s && s._53 && s._53[0]) { BTN.w = s._53[0]._J52; BTN.h = s._53[0]._K52; }
-                // Slim button: shadow -> base sprite -> tint overlay (matches obj_button_med_slim's _23 draw)
+                // Slim button: shadow -> base sprite -> tint overlay (matches obj_button_med's _Y2 draw)
                 _mh1(inst, spr, 2, x + 2, y + 2, 1, 1, 0, 4210752, 0.5);
                 _Kh1(inst, spr, 0, x, y);
                 _mh1(inst, spr, 2, x, y, 1, 1, 0, inst._po || 4294967295, 1);
-                // Button text — font 1, centered, +1/-1 baseline tweak as in _23
+                // Button text — font 1, halign center. DO NOT touch valign — _Y2 uses
+                // the default (fa_top=0) and the +1/-1 baseline tweak. Setting valign
+                // to middle and resetting leaks state to other buttons drawn after us
+                // and makes their text occasionally render at the wrong y (visible
+                // as text "blinking up and down" on DIFFICULTY/etc.).
                 _gh1(1);
                 _hh1(1);
-                _ih1(1);
                 _nh1(x + BTN.w / 2 + 1, y + BTN.h / 2 - 1, BTN.label);
-                // Side label — same style as obj_text_watermark labels (font 1, right-aligned, white, vmid)
+                // Side label — right-aligned, matches obj_text_exp/obj_text_watermark labels
                 _hh1(2);
-                _ih1(1);
                 _nh1(LABEL.x, LABEL.y, LABEL.text);
-                _hh1(0);
-                _ih1(0);
+                // Restore halign to 1 (what _Y2 sets at start of every draw, so neutral leak).
+                _hh1(1);
             }
 
             // ---- Click intercept -------------------------------------
